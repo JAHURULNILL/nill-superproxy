@@ -475,6 +475,15 @@ public class MainActivity extends Activity {
         addToSheet(col, textRow("Firewall apps", store.firewallApps().size() + " apps blocked while connected",
                 () -> openPicker("firewall")));
 
+        sectionLabel(col, "Privacy & leak shield");
+        addToSheet(col, switchRow("Strict leak shield",
+                "Bypass apps and the allowlist are ignored; every name is resolved by the proxy itself",
+                store.strictMode(), v -> store.setStrictMode(v)));
+        addToSheet(col, textRow("Leak shield status", "What the tunnel is blocking and shielding right now",
+                this::showShieldStatus));
+        addToSheet(col, textRow("Privacy guide", "What a proxy can hide — and what it cannot",
+                this::showPrivacyGuide));
+
         sectionLabel(col, "System");
         addToSheet(col, textRow("Kill switch", "Always-on VPN + Block connections without VPN (system setting)",
                 () -> {
@@ -487,6 +496,38 @@ public class MainActivity extends Activity {
                 () -> UpdateManager.check(this, true)));
         addToSheet(col, textRow("About", "Nill Super Proxy " + ver, this::showAbout));
         return scroll;
+    }
+
+    private void showShieldStatus() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(NillVpnService.running ? "Connection: ON — all traffic is inside the tunnel\n\n" : "Connection: off\n\n");
+        sb.append("DNS names shielded: ").append(LogStore.dnsShielded)
+          .append("\n(answered on this phone; the proxy resolves the name — no DNS leaves the device)\n\n");
+        sb.append("UDP packets blocked: ").append(LogStore.droppedUdp)
+          .append("\n(WebRTC / STUN / QUIC ride on UDP — blocking it seals the classic IP leak)\n\n");
+        sb.append("IPv6 packets blocked: ").append(LogStore.droppedIpv6).append("\n\n");
+        sb.append("Strict shield: ").append(store.strictMode() ? "ON" : "OFF").append("\n");
+        sb.append("Bypass apps selected: ").append(store.disallowedApps().size());
+        if (store.strictMode() && !store.disallowedApps().isEmpty()) sb.append(" (ignored while strict is on)");
+        sb.append("\nAllowlist mode: ").append(store.allowlistMode() ? "on" : "off");
+        if (store.strictMode() && store.allowlistMode()) sb.append(" (ignored while strict is on)");
+        sb.append("\n\nKill switch: for a hard fail-closed guarantee also enable Android's ")
+          .append("\"Always-on VPN\" + \"Block connections without VPN\" (Kill switch row, System section).");
+        new AlertDialog.Builder(this).setTitle("Leak shield status")
+                .setMessage(sb.toString()).setPositiveButton("OK", null).show();
+    }
+
+    private void showPrivacyGuide() {
+        String msg = "With this app connected, your IP address, DNS names, WebRTC and IPv6 are sealed "
+                + "inside the proxy tunnel. A website sees only the proxy exit — its country, city and ISP.\n\n"
+                + "What NO proxy or VPN app can change (be honest with yourself about these):\n\n"
+                + "1) Browser fingerprint — screen size, fonts, canvas. Use one separate browser only for proxy work.\n\n"
+                + "2) Time zone & language — a US proxy with a Dhaka time zone looks wrong. While you work, "
+                + "set the phone's time zone to the proxy's country.\n\n"
+                + "3) GPS location — turn OFF the Location permission for the browser and any app you use through the proxy.\n\n"
+                + "4) Logins & cookies — a signed-in account knows you whatever the IP is. Use a separate browser profile for proxy work.";
+        new AlertDialog.Builder(this).setTitle("Privacy guide")
+                .setMessage(msg).setPositiveButton("OK", null).show();
     }
 
     private void openNotificationSettings() {

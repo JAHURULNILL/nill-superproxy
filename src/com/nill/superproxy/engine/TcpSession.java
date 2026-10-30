@@ -21,6 +21,11 @@ public class TcpSession {
         void write(byte[] packet);
     }
 
+    /** Resolves a name to an IP (used only if the proxy refuses name-form connects). */
+    public interface Resolver {
+        String resolve(String domain) throws Exception;
+    }
+
     public interface Listener {
         void onClosed(String key);
         void onLog(String message);
@@ -33,6 +38,8 @@ public class TcpSession {
     public final String dstIp;
     public final int dstPort;
 
+    private final String connectHost; // name to give the proxy; null = dial dstIp directly
+    private final Resolver resolver;
     private final ProxyConnector.Config proxyCfg;
     private final ProxyConnector.Protector protector;
     private final PacketSink sink;
@@ -61,6 +68,12 @@ public class TcpSession {
     public TcpSession(String key, String clientIp, int clientPort, String dstIp, int dstPort,
                       ProxyConnector.Config proxyCfg, ProxyConnector.Protector protector,
                       PacketSink sink, Listener listener) {
+        this(key, clientIp, clientPort, dstIp, dstPort, proxyCfg, protector, sink, listener, null, null);
+    }
+
+    public TcpSession(String key, String clientIp, int clientPort, String dstIp, int dstPort,
+                      ProxyConnector.Config proxyCfg, ProxyConnector.Protector protector,
+                      PacketSink sink, Listener listener, String connectHost, Resolver resolver) {
         this.key = key;
         this.clientIp = clientIp;
         this.clientPort = clientPort;
@@ -70,6 +83,8 @@ public class TcpSession {
         this.protector = protector;
         this.sink = sink;
         this.listener = listener;
+        this.connectHost = connectHost;
+        this.resolver = resolver;
     }
 
     public boolean isClosed() { return closed; }
@@ -88,22 +103,34 @@ public class TcpSession {
     }
 
     private void connectAndServe() {
+        String target = connectHost != null ? connectHost : dstIp;
         try {
-            socket = ProxyConnector.connect(proxyCfg, dstIp, dstPort, protector);
+            try {
+                socket = ProxyConnector.connect(proxyCfg, target, dstPort, protector);
+            } catch (IOException first) {
+                // A few proxies refuse name-form CONNECTs: resolve through the
+                // tunnel (never locally) and retry by address.
+                if (resolver == null || ProxyConnector.isIpv4Literal(target)) throw first;
+                String ip = null;
+                try { ip = resolver.resolve(target); } catch (Exception ignored) {}
+                if (ip == null) throw first;
+                listener.onLog("CONNECT " + target + " resolved via proxy DNS to " + ip);
+                socket = ProxyConnector.connect(proxyCfg, ip, dstPort, protector);
+            }
             proxyOut = socket.getOutputStream();
             proxyIn = socket.getInputStream();
             if (closed) { closeSocket(); return; }
             // SYN-ACK to client
             sendToClient(null, 0, 0, Packets.FLAG_SYN | Packets.FLAG_ACK);
             serverSeq = (serverSeq + 1) & 0xFFFFFFFFL;
-            listener.onLog("CONNECT " + dstIp + ":" + dstPort + " 200");
+            listener.onLog("CONNECT " + target + ":" + dstPort + " 200");
             Thread r = new Thread(new Runnable() {
                 @Override public void run() { proxyReaderLoop(); }
             }, "tcpsess-read");
             r.setDaemon(true);
             r.start();
         } catch (IOException e) {
-            listener.onLog("CONNECT " + dstIp + ":" + dstPort + " FAILED (" + e.getMessage() + ")");
+            listener.onLog("CONNECT " + target + ":" + dstPort + " FAILED (" + e.getMessage() + ")");
             // Refuse the connection cleanly so the app retries/fails fast instead of hanging.
             if (!closed) sendToClient(null, 0, 0, Packets.FLAG_RST | Packets.FLAG_ACK);
             close();

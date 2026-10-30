@@ -16,6 +16,7 @@ import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 
 import com.nill.superproxy.engine.DnsClient;
+import com.nill.superproxy.engine.FakeDns;
 import com.nill.superproxy.engine.Packets;
 import com.nill.superproxy.engine.ProxyConnector;
 import com.nill.superproxy.engine.TcpSession;
@@ -60,7 +61,17 @@ public class NillVpnService extends VpnService {
     private Thread speedThread;
     private ExecutorService dnsPool;
     private Profile profile;
+    private FakeDns fakeDns;
     private ProxyConnector.Config proxyCfg;
+
+    /** Fallback resolver: asks through the tunnel, never the local network. */
+    private final TcpSession.Resolver domainResolver = new TcpSession.Resolver() {
+        @Override public String resolve(String domain) throws Exception {
+            byte[] q = FakeDns.buildAQuery(domain);
+            byte[] resp = DnsClient.queryViaProxy(proxyCfg, "1.1.1.1", q, 0, q.length, protector);
+            return FakeDns.firstA(resp);
+        }
+    };
     private Store store;
     private ConnectivityManager.NetworkCallback netCallback;
 
@@ -127,21 +138,25 @@ public class NillVpnService extends VpnService {
         } catch (Exception ignored) {}
         b.addDnsServer(ProfileEditActivity.dnsIpFor(p.dnsServer));
         b.setBlocking(true);
-        // Per-app rules
+        // Per-app rules — the strict leak shield overrides them all: any app
+        // left outside the tunnel would expose the real IP.
+        boolean strict = store.strictMode();
+        if (strict) LogStore.add("STRICT shield on — bypass/allowlist ignored, all apps tunnelled");
         try {
-            if (store.allowlistMode()) {
+            if (!strict && store.allowlistMode()) {
                 Set<String> allowed = store.allowedApps();
                 for (String pkg : allowed) {
                     try { b.addAllowedApplication(pkg); } catch (PackageManager.NameNotFoundException ignored) {}
                 }
                 if (allowed.isEmpty()) b.addAllowedApplication(getPackageName());
-            } else {
+            } else if (!strict) {
                 for (String pkg : store.disallowedApps()) {
                     try { b.addDisallowedApplication(pkg); } catch (PackageManager.NameNotFoundException ignored) {}
                 }
             }
         } catch (Exception ignored) {}
 
+        fakeDns = new FakeDns();
         tun = b.establish();
         if (tun == null) {
             LogStore.add("VPN establish failed (permission revoked?)");
@@ -157,7 +172,7 @@ public class NillVpnService extends VpnService {
         store.setLastProfileId(p.id);
         dnsPool = Executors.newFixedThreadPool(4);
         LogStore.totalUp = 0; LogStore.totalDown = 0;
-        LogStore.droppedUdp = 0; LogStore.droppedIpv6 = 0;
+        LogStore.droppedUdp = 0; LogStore.droppedIpv6 = 0; LogStore.dnsShielded = 0;
         LogStore.add("SERVICE_STARTED " + p.name + " via " + p.protocol + " " + p.endpoint());
 
         startForeground(1, buildNotification("Connected to " + p.name));
@@ -244,6 +259,7 @@ public class NillVpnService extends VpnService {
                 LogStore.add("FIREWALL blocked " + dstIp + ":" + dstPort);
                 return;
             }
+            String domain = fakeDns != null ? fakeDns.domainFor(dstIp) : null;
             session = new TcpSession(key, srcIp, srcPort, dstIp, dstPort, proxyCfg, protector,
                     new TcpSession.PacketSink() {
                         @Override public void write(byte[] packet) { writeToTun(packet); }
@@ -256,7 +272,7 @@ public class NillVpnService extends VpnService {
                         @Override public void onBytes(long up, long down) {
                             LogStore.totalUp += up; LogStore.totalDown += down;
                         }
-                    });
+                    }, domain, domainResolver);
             synchronized (sessions) { sessions.put(key, session); }
             session.onSyn(Packets.tcpSeq(pkt));
         } else {
@@ -293,6 +309,21 @@ public class NillVpnService extends VpnService {
         System.arraycopy(pkt, payOff, query, 0, payLen);
         String name = Packets.dnsQueryName(query, 0, payLen);
         if (!name.isEmpty()) LogStore.add("DNS " + name);
+        // Fake-IP shield: in "Proxy" DNS mode the query is answered on-device
+        // and the name travels inside the CONNECT — DNS can neither leak nor
+        // betray the exit's country.
+        boolean proxyDnsMode = profile.dnsServer == null || "Proxy".equals(profile.dnsServer);
+        if (proxyDnsMode && fakeDns != null) {
+            byte[] fake = null;
+            try { fake = fakeDns.buildResponse(query, 0, query.length); } catch (Exception ignored) {}
+            if (fake != null) {
+                LogStore.dnsShielded++;
+                byte[] outPkt = Packets.buildUdp(dstIp, srcIp, 53, srcPort, fake, 0, fake.length);
+                writeToTun(outPkt);
+                LogStore.totalDown += fake.length;
+                return;
+            }
+        }
         if (dnsPool == null) return;
         dnsPool.execute(new Runnable() {
             @Override public void run() {

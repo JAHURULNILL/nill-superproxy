@@ -19,6 +19,7 @@ public class LogStore {
     public static volatile double downRate = 0; // bytes/sec
     public static volatile long droppedUdp = 0;
     public static volatile long droppedIpv6 = 0;
+    public static volatile long dnsShielded = 0;
 
     private static final SimpleDateFormat FMT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
 

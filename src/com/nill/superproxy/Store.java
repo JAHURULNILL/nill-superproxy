@@ -86,6 +86,10 @@ public class Store {
     public void setAutoReconnect(boolean v) { sp.edit().putBoolean("auto_reconnect", v).apply(); }
 
     public boolean allowlistMode() { return sp.getBoolean("allowlist_mode", false); }
+
+    /** Strict leak shield: while on, bypass apps and the allowlist are ignored. */
+    public boolean strictMode() { return sp.getBoolean("strict_mode", true); }
+    public void setStrictMode(boolean v) { sp.edit().putBoolean("strict_mode", v).apply(); }
     public void setAllowlistMode(boolean v) { sp.edit().putBoolean("allowlist_mode", v).apply(); }
 
     public String lastProfileId() { return sp.getString("last_profile", null); }

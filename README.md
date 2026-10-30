@@ -29,8 +29,15 @@ Stronger than a plain tun2proxy:
 - Android `VpnService` TUN captures all IPv4 traffic; a built-in TCP stack
   relays every connection **only** through the configured proxy
   (SOCKS5 RFC 1928/1929 or HTTP CONNECT, optional TLS wrap to the proxy).
-- **DNS**: queries are intercepted and re-issued over TCP *through the
-  proxy* to the configured resolver → no DNS leak.
+- **DNS**: in "Proxy" mode queries are answered on-device with fake IPs
+  (198.18.0.0/15) and the name itself travels inside the CONNECT, so the
+  *proxy* resolves it — no DNS packet ever leaves the phone, and the
+  resolver the world sees always matches the exit IP's country/ISP.
+  Other modes re-issue the query over TCP *through the proxy* instead.
+  AAAA always returns empty, so there is no IPv6 to leak.
+- **Leak shield**: Settings → *Privacy & leak shield* — strict mode
+  (bypass/allowlist ignored, everything tunnelled), live counters of
+  blocked UDP/IPv6 and shielded DNS, plus an honest privacy guide.
 - **UDP**: dropped entirely except DNS → STUN/WebRTC cannot leak the real
   IP; QUIC falls back to TCP so it still goes through the proxy.
 - **IPv6**: routed into the tunnel (ULA + ::/0) and dropped → no bypass.
@@ -59,5 +66,5 @@ Settings → Check for updates. Android shows its own install confirmation —
 there is no silent install for sideloaded apps.
 
 ## Version
-**1.8** — reference-matched UI (outlined fields, vector icons, launcher icon),
+**1.9** — reference-matched UI (outlined fields, vector icons, launcher icon),
 clean sheet-style Settings, in-app auto-update via GitHub Releases.

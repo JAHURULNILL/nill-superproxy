@@ -149,6 +149,66 @@ public class TestEngine {
         check("session-fin-returned", gotFin);
         sess.close();
 
+        // ---- 7. FakeDns: A query answered locally with a fake IP ----
+        FakeDns fd = new FakeDns();
+        byte[] aq = FakeDns.buildAQuery("example.com");
+        byte[] ar = fd.buildResponse(aq, 0, aq.length);
+        check("fakedns-a-response", ar != null);
+        String fip = ar != null ? FakeDns.firstA(ar) : null;
+        check("fakedns-a-fakeip", fip != null && FakeDns.isFakeIp(fip) && fip.equals(fd.fakeIpFor("example.com")));
+        check("fakedns-reverse-map", fip != null && "example.com".equals(fd.domainFor(fip)));
+
+        // ---- 8. FakeDns: AAAA gets an empty NOERROR (no IPv6 to leak) ----
+        byte[] aaaaq = aq.clone();
+        aaaaq[aaaaq.length - 4] = 0; aaaaq[aaaaq.length - 3] = 28; // qtype = AAAA
+        byte[] aaaar = fd.buildResponse(aaaaq, 0, aaaaq.length);
+        check("fakedns-aaaa-empty", aaaar != null && (((aaaar[7] & 0xFF)) == 0));
+
+        // ---- 9. SOCKS5 domain-form CONNECT -> echo (proxy resolves the name) ----
+        Socket doms = ProxyConnector.connect(sc, "localhost", 7777, null);
+        doms.getOutputStream().write("hello-domain".getBytes("UTF-8"));
+        doms.getOutputStream().flush();
+        byte[] db = new byte[64];
+        int dn = doms.getInputStream().read(db);
+        check("socks5-domain-echo", dn == 12 && "hello-domain".equals(new String(db, 0, dn, "UTF-8")));
+        doms.close();
+
+        // ---- 10. TcpSession via fake IP + domain CONNECT: full echo ----
+        final BlockingQueue<byte[]> toClient2 = new LinkedBlockingQueue<>();
+        TcpSession.PacketSink sink2 = pkt -> toClient2.add(pkt.clone());
+        String fakeLocal = fd.fakeIpFor("localhost");
+        TcpSession sess2 = new TcpSession("k2", "10.0.0.2", 40002, fakeLocal, 7777, sc, null, sink2, listener, "localhost", null);
+        sess2.onSyn(9000);
+        byte[] synAck2 = toClient2.poll(5, TimeUnit.SECONDS);
+        check("session-domain-synack", synAck2 != null && Packets.dstIp(synAck2).equals("10.0.0.2") && Packets.srcIp(synAck2).equals(fakeLocal));
+        byte[] payload2 = "via-domain".getBytes("UTF-8");
+        long srvSeq2 = synAck2 != null ? Packets.tcpSeq(synAck2) : 0;
+        byte[] dataPkt2 = Packets.buildTcp("10.0.0.2", fakeLocal, 40002, 7777,
+                9001, srvSeq2 + 1, Packets.FLAG_ACK | Packets.FLAG_PSH, 65535, payload2, 0, payload2.length);
+        sess2.onPacket(dataPkt2, dataPkt2.length);
+        byte[] echoed2 = null;
+        long dl2 = System.currentTimeMillis() + 5000;
+        while (System.currentTimeMillis() < dl2 && echoed2 == null) {
+            byte[] pp = toClient2.poll(500, TimeUnit.MILLISECONDS);
+            if (pp == null) continue;
+            int po = Packets.tcpPayloadOff(pp);
+            int tl = Packets.ipTotalLen(pp, pp.length);
+            if (tl - po == payload2.length) echoed2 = Arrays.copyOfRange(pp, po, tl);
+        }
+        check("session-domain-echo", echoed2 != null && Arrays.equals(echoed2, payload2));
+        sess2.close();
+
+        // ---- 11. Resolver fallback: bad name-form connect retries by resolved IP ----
+        final BlockingQueue<byte[]> toClient3 = new LinkedBlockingQueue<>();
+        TcpSession.PacketSink sink3 = pkt -> toClient3.add(pkt.clone());
+        TcpSession.Resolver res = domain -> "127.0.0.1";
+        TcpSession sess3 = new TcpSession("k3", "10.0.0.2", 40003, fd.fakeIpFor("nonexistent.invalid"), 7777,
+                sc, null, sink3, listener, "nonexistent.invalid", res);
+        sess3.onSyn(3000);
+        byte[] synAck3 = toClient3.poll(8, TimeUnit.SECONDS);
+        check("session-resolver-fallback", synAck3 != null && (Packets.tcpFlags(synAck3) & Packets.FLAG_SYN) != 0);
+        sess3.close();
+
         System.out.println("RESULT passed=" + passed + " failed=" + failed);
         if (failed > 0) System.exit(1);
     }
