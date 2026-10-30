@@ -88,7 +88,7 @@ public class Store {
     public boolean allowlistMode() { return sp.getBoolean("allowlist_mode", false); }
 
     /** Strict leak shield: while on, bypass apps and the allowlist are ignored. */
-    public boolean strictMode() { return sp.getBoolean("strict_mode", true); }
+    public boolean strictMode() { return sp.getBoolean("strict_mode", false); }
     public void setStrictMode(boolean v) { sp.edit().putBoolean("strict_mode", v).apply(); }
     public void setAllowlistMode(boolean v) { sp.edit().putBoolean("allowlist_mode", v).apply(); }
 

@@ -35,9 +35,10 @@ Stronger than a plain tun2proxy:
   resolver the world sees always matches the exit IP's country/ISP.
   Other modes re-issue the query over TCP *through the proxy* instead.
   AAAA always returns empty, so there is no IPv6 to leak.
-- **Leak shield**: Settings → *Privacy & leak shield* — strict mode
-  (bypass/allowlist ignored, everything tunnelled), live counters of
-  blocked UDP/IPv6 and shielded DNS, plus an honest privacy guide.
+- **Leak shield**: Settings → *Privacy & leak shield* — an optional strict
+  mode (bypass/allowlist ignored, everything tunnelled; off by default —
+  per-app rules are yours), live counters of blocked UDP/IPv6 and
+  shielded DNS, plus an honest privacy guide.
 - **UDP**: dropped entirely except DNS → STUN/WebRTC cannot leak the real
   IP; QUIC falls back to TCP so it still goes through the proxy.
 - **IPv6**: routed into the tunnel (ULA + ::/0) and dropped → no bypass.
@@ -66,5 +67,5 @@ Settings → Check for updates. Android shows its own install confirmation —
 there is no silent install for sideloaded apps.
 
 ## Version
-**1.9** — reference-matched UI (outlined fields, vector icons, launcher icon),
+**1.10** — reference-matched UI (outlined fields, vector icons, launcher icon),
 clean sheet-style Settings, in-app auto-update via GitHub Releases.

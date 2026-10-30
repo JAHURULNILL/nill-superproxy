@@ -506,7 +506,12 @@ public class MainActivity extends Activity {
         sb.append("UDP packets blocked: ").append(LogStore.droppedUdp)
           .append("\n(WebRTC / STUN / QUIC ride on UDP — blocking it seals the classic IP leak)\n\n");
         sb.append("IPv6 packets blocked: ").append(LogStore.droppedIpv6).append("\n\n");
-        sb.append("Strict shield: ").append(store.strictMode() ? "ON" : "OFF").append("\n");
+        sb.append("Tunnel mode: ");
+        if (store.strictMode()) sb.append("all apps (strict shield on)");
+        else if (store.allowlistMode()) sb.append("allowlist — only ").append(store.allowedApps().size()).append(" chosen app(s) use the proxy");
+        else if (!store.disallowedApps().isEmpty()) sb.append("all apps except ").append(store.disallowedApps().size()).append(" bypass app(s)");
+        else sb.append("all apps");
+        sb.append("\nStrict shield: ").append(store.strictMode() ? "ON" : "OFF").append("\n");
         sb.append("Bypass apps selected: ").append(store.disallowedApps().size());
         if (store.strictMode() && !store.disallowedApps().isEmpty()) sb.append(" (ignored while strict is on)");
         sb.append("\nAllowlist mode: ").append(store.allowlistMode() ? "on" : "off");
@@ -525,7 +530,10 @@ public class MainActivity extends Activity {
                 + "2) Time zone & language — a US proxy with a Dhaka time zone looks wrong. While you work, "
                 + "set the phone's time zone to the proxy's country.\n\n"
                 + "3) GPS location — turn OFF the Location permission for the browser and any app you use through the proxy.\n\n"
-                + "4) Logins & cookies — a signed-in account knows you whatever the IP is. Use a separate browser profile for proxy work.";
+                + "4) Logins & cookies — a signed-in account knows you whatever the IP is. Use a separate browser profile for proxy work.\n\n"
+                + "Using the proxy for just one app? Allowlist mode is built for exactly that — only the apps you pick "
+                + "go through the tunnel, and their traffic is sealed the same way. Everything else stays on your normal "
+                + "connection, which is what local apps (banking, bKash) usually need.";
         new AlertDialog.Builder(this).setTitle("Privacy guide")
                 .setMessage(msg).setPositiveButton("OK", null).show();
     }
