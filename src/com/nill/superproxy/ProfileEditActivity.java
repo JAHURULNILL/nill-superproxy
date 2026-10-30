@@ -46,7 +46,9 @@ public class ProfileEditActivity extends Activity {
     private Switch fTls, fFav;
     private LinearLayout userPassBox, advancedBox;
     private TextView timerText, delTv, advToggleTv;
-    private android.widget.ImageView backIv, saveIv;
+    private android.widget.ImageView backIv, saveIv, eyeIv;
+    private LinearLayout btnBar;
+    private boolean editing;
     private Button startBtn;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean alive = true;
@@ -69,11 +71,17 @@ public class ProfileEditActivity extends Activity {
         String id = getIntent().getStringExtra("profile_id");
         profile = id != null ? store.profileById(id) : null;
         if (profile == null) { profile = new Profile(); profile.name = "New Profile"; }
+        editing = id == null;
         buildUi();
         startTimer();
     }
 
     @Override protected void onDestroy() { alive = false; super.onDestroy(); }
+
+    @Override public void onBackPressed() {
+        if (editing && !isRunningThis() && getIntent().getStringExtra("profile_id") != null) recreate();
+        else super.onBackPressed();
+    }
 
     private boolean isRunningThis() {
         return NillVpnService.running && profile.id.equals(NillVpnService.activeProfileId);
@@ -185,7 +193,10 @@ public class ProfileEditActivity extends Activity {
         backLp.rightMargin = Ui.dp(this, 8);
         backIv.setLayoutParams(backLp);
         backIv.setPadding(Ui.dp(this, 2), Ui.dp(this, 2), Ui.dp(this, 2), Ui.dp(this, 2));
-        backIv.setOnClickListener(v -> finish());
+        backIv.setOnClickListener(v -> {
+            if (editing && getIntent().getStringExtra("profile_id") != null) recreate();
+            else finish();
+        });
         top.addView(backIv);
         timerText = ui.text(this, isRunningThis() ? "00:00:00" : "", 17, Color.WHITE, true);
         timerText.setGravity(Gravity.CENTER);
@@ -197,7 +208,15 @@ public class ProfileEditActivity extends Activity {
         LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(Ui.dp(this, 26), Ui.dp(this, 26));
         saveIv.setLayoutParams(slp);
         saveIv.setOnClickListener(v -> {
-            if (saveFromForm()) { Toast.makeText(this, "Saved", Toast.LENGTH_SHORT).show(); finish(); }
+            if (!editing) { editing = true; applyMode(); return; }
+            if (!saveFromForm()) return;
+            Toast.makeText(this, "Saved", Toast.LENGTH_SHORT).show();
+            if (getIntent().getStringExtra("profile_id") == null) {
+                Intent i = new Intent(this, ProfileEditActivity.class);
+                i.putExtra("profile_id", profile.id);
+                startActivity(i);
+                finish();
+            } else recreate();
         });
         top.addView(saveIv);
         root.addView(top);
@@ -289,7 +308,7 @@ public class ProfileEditActivity extends Activity {
         }
 
         // Start/Stop sits in a white bar with rounded top corners, like the reference app
-        LinearLayout btnBar = new LinearLayout(this);
+        btnBar = new LinearLayout(this);
         btnBar.setOrientation(LinearLayout.VERTICAL);
         android.graphics.drawable.GradientDrawable barBg = new android.graphics.drawable.GradientDrawable();
         barBg.setColor(ui.dark ? ui.card : Color.WHITE);
@@ -303,7 +322,6 @@ public class ProfileEditActivity extends Activity {
                 NillVpnService.stopNow(this);
                 handler.postDelayed(this::refreshStartBtn, 500);
             } else {
-                if (!saveFromForm()) return;
                 if (new Store(this).connectivityCheck()) testThenStart();
                 else requestStart();
             }
@@ -313,7 +331,7 @@ public class ProfileEditActivity extends Activity {
 
         root.addView(buildBottomNav());
         setContentView(root);
-        applyRunningMode();
+        applyMode();
     }
 
     /** Password field with the eye toggle, like the reference app (password visible by default). */
@@ -322,7 +340,8 @@ public class ProfileEditActivity extends Activity {
         e.setInputType(InputType.TYPE_CLASS_TEXT);
         e.setPadding(Ui.dp(this, 14), Ui.dp(this, 16), Ui.dp(this, 48), Ui.dp(this, 16));
         wrap.addView(e);
-        ImageView eye = new ImageView(this);
+        eyeIv = new ImageView(this);
+        ImageView eye = eyeIv;
         eye.setImageResource(R.drawable.ic_visibility);
         eye.setColorFilter(Color.rgb(95, 99, 104));
         FrameLayout.LayoutParams elp = new FrameLayout.LayoutParams(Ui.dp(this, 24), Ui.dp(this, 24));
@@ -340,14 +359,27 @@ public class ProfileEditActivity extends Activity {
         return wrap;
     }
 
-    /** Like the reference app: while this profile is connected the form locks — stop first to edit. */
-    private void applyRunningMode() {
+    /**
+     * Three states, like the reference app:
+     * view mode — fields locked, pencil in the header; edit mode — fields open, floppy
+     * in the header, Start bar hidden; connected — everything locked, header shows
+     * only the big timer (back and pencil both gone).
+     */
+    private void applyMode() {
         boolean r = isRunningThis();
-        View[] inputs = {fName, fProto, fHost, fPort, fAuth, fUser, fPass, fDns, fTls, fFav, advToggleTv};
-        for (View v : inputs) if (v != null) v.setEnabled(!r);
-        if (delTv != null) delTv.setVisibility(r ? View.GONE : View.VISIBLE);
+        boolean editable = editing && !r;
+        View[] inputs = {fName, fProto, fHost, fPort, fAuth, fUser, fPass, fDns, fTls, fFav};
+        for (View v : inputs) if (v != null) v.setEnabled(editable);
+        if (eyeIv != null) eyeIv.setEnabled(!r);
+        if (advToggleTv != null) advToggleTv.setEnabled(!r);
+        boolean existing = getIntent().getStringExtra("profile_id") != null;
+        if (delTv != null) delTv.setVisibility(!editing && !r && existing ? View.VISIBLE : View.GONE);
         if (backIv != null) backIv.setVisibility(r ? View.INVISIBLE : View.VISIBLE);
-        if (saveIv != null) saveIv.setVisibility(r ? View.INVISIBLE : View.VISIBLE);
+        if (saveIv != null) {
+            saveIv.setVisibility(r ? View.INVISIBLE : View.VISIBLE);
+            saveIv.setImageResource(editing ? R.drawable.ic_save : R.drawable.ic_edit);
+        }
+        if (btnBar != null) btnBar.setVisibility(editing ? View.GONE : View.VISIBLE);
         if (timerText != null) timerText.setTextSize(r ? 26 : 17);
     }
 
@@ -489,7 +521,7 @@ public class ProfileEditActivity extends Activity {
         startBtn.setText(r ? "Stop" : "Start");
         startBtn.setBackground(Ui.rounded(r ? Ui.RED : Ui.GREEN, Ui.dp(this, 28)));
         if (!r) timerText.setText("");
-        applyRunningMode();
+        applyMode();
     }
 
     private void startTimer() {
