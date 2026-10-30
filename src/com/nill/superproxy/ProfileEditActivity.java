@@ -45,7 +45,8 @@ public class ProfileEditActivity extends Activity {
     private Spinner fProto, fAuth, fDns;
     private Switch fTls, fFav;
     private LinearLayout userPassBox, advancedBox;
-    private TextView timerText;
+    private TextView timerText, delTv, advToggleTv;
+    private android.widget.ImageView backIv, saveIv;
     private Button startBtn;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean alive = true;
@@ -82,7 +83,7 @@ public class ProfileEditActivity extends Activity {
 
     private GradientDrawable outline(boolean focused) {
         GradientDrawable g = new GradientDrawable();
-        g.setColor(ui.dark ? ui.fieldBg : Color.rgb(250, 253, 255));
+        g.setColor(ui.dark ? ui.fieldBg : Color.rgb(236, 243, 248));
         g.setCornerRadius(Ui.dp(this, 6));
         g.setStroke(Ui.dp(this, focused ? 2 : 1),
                 focused ? Ui.BLUE : (ui.dark ? ui.divider : Color.rgb(127, 179, 213)));
@@ -171,34 +172,34 @@ public class ProfileEditActivity extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(ui.bg);
 
-        // Top bar: back arrow, (timer when running), floppy save icon — no title text
+        // Top bar: back arrow, (big timer when running), floppy save icon — no title text
         LinearLayout top = new LinearLayout(this);
         top.setOrientation(LinearLayout.HORIZONTAL);
         top.setGravity(Gravity.CENTER_VERTICAL);
         top.setBackgroundColor(ui.topBar);
         top.setPadding(Ui.dp(this, 10), Ui.dp(this, 14), Ui.dp(this, 14), Ui.dp(this, 14));
-        ImageView back = new ImageView(this);
-        back.setImageResource(R.drawable.ic_arrow_back);
-        back.setColorFilter(Color.WHITE);
+        backIv = new ImageView(this);
+        backIv.setImageResource(R.drawable.ic_arrow_back);
+        backIv.setColorFilter(Color.WHITE);
         LinearLayout.LayoutParams backLp = new LinearLayout.LayoutParams(Ui.dp(this, 28), Ui.dp(this, 28));
         backLp.rightMargin = Ui.dp(this, 8);
-        back.setLayoutParams(backLp);
-        back.setPadding(Ui.dp(this, 2), Ui.dp(this, 2), Ui.dp(this, 2), Ui.dp(this, 2));
-        back.setOnClickListener(v -> finish());
-        top.addView(back);
+        backIv.setLayoutParams(backLp);
+        backIv.setPadding(Ui.dp(this, 2), Ui.dp(this, 2), Ui.dp(this, 2), Ui.dp(this, 2));
+        backIv.setOnClickListener(v -> finish());
+        top.addView(backIv);
         timerText = ui.text(this, isRunningThis() ? "00:00:00" : "", 17, Color.WHITE, true);
         timerText.setGravity(Gravity.CENTER);
         timerText.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
         top.addView(timerText);
-        ImageView save = new ImageView(this);
-        save.setImageResource(R.drawable.ic_save);
-        save.setColorFilter(Color.WHITE);
+        saveIv = new ImageView(this);
+        saveIv.setImageResource(R.drawable.ic_save);
+        saveIv.setColorFilter(Color.WHITE);
         LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(Ui.dp(this, 26), Ui.dp(this, 26));
-        save.setLayoutParams(slp);
-        save.setOnClickListener(v -> {
+        saveIv.setLayoutParams(slp);
+        saveIv.setOnClickListener(v -> {
             if (saveFromForm()) { Toast.makeText(this, "Saved", Toast.LENGTH_SHORT).show(); finish(); }
         });
-        top.addView(save);
+        top.addView(saveIv);
         root.addView(top);
 
         ScrollView scroll = new ScrollView(this);
@@ -216,23 +217,22 @@ public class ProfileEditActivity extends Activity {
         fProto = plainSpinner(new String[]{"SOCKS5", "HTTP"}, "HTTP".equals(profile.protocol) ? 1 : 0);
         form.addView(outlinedBox("Protocol", spinnerField(fProto)));
 
-        fHost = plainField("Server", profile.host, false);
-        form.addView(outlinedBox(null, fHost));
+        fHost = plainField("", profile.host, false);
+        form.addView(outlinedBox("Server", fHost));
 
         boolean isNew = getIntent().getStringExtra("profile_id") == null;
-        fPort = plainField("Port", isNew || profile.port == 0 ? "" : String.valueOf(profile.port), true);
-        form.addView(outlinedBox(null, fPort));
+        fPort = plainField("", isNew || profile.port == 0 ? "" : String.valueOf(profile.port), true);
+        form.addView(outlinedBox("Port", fPort));
 
         fAuth = plainSpinner(new String[]{"None", "Username/Password"}, profile.auth ? 1 : 0);
         form.addView(outlinedBox("Authentication method", spinnerField(fAuth)));
 
         userPassBox = new LinearLayout(this);
         userPassBox.setOrientation(LinearLayout.VERTICAL);
-        fUser = plainField("Username", profile.username, false);
-        userPassBox.addView(outlinedBox(null, fUser));
-        fPass = plainField("Password", profile.password, false);
-        fPass.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        userPassBox.addView(outlinedBox(null, fPass));
+        fUser = plainField("", profile.username, false);
+        userPassBox.addView(outlinedBox("Username", fUser));
+        fPass = plainField("", profile.password, false);
+        userPassBox.addView(outlinedBox("Password", passwordField(fPass)));
         userPassBox.setVisibility(profile.auth ? View.VISIBLE : View.GONE);
         form.addView(userPassBox);
         fAuth.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
@@ -251,9 +251,9 @@ public class ProfileEditActivity extends Activity {
         form.addView(outlinedBox("DNS resolution", spinnerField(fDns)));
 
         // Advanced options (TLS + favourite), collapsed by default like the reference's clean form
-        TextView advToggle = ui.text(this, "Advanced options  ▾", 14, Ui.BLUE, true);
-        advToggle.setPadding(Ui.dp(this, 2), Ui.dp(this, 16), 0, Ui.dp(this, 4));
-        form.addView(advToggle);
+        advToggleTv = ui.text(this, "Advanced options  ▾", 14, Ui.BLUE, true);
+        advToggleTv.setPadding(Ui.dp(this, 2), Ui.dp(this, 16), 0, Ui.dp(this, 4));
+        form.addView(advToggleTv);
         advancedBox = new LinearLayout(this);
         advancedBox.setOrientation(LinearLayout.VERTICAL);
         advancedBox.setVisibility(View.GONE);
@@ -263,13 +263,40 @@ public class ProfileEditActivity extends Activity {
         LinearLayout favRow = switchRow("Favourite (star in list)", profile.favorite);
         fFav = (Switch) favRow.getTag();
         advancedBox.addView(favRow);
-        advToggle.setOnClickListener(v -> {
+        advToggleTv.setOnClickListener(v -> {
             boolean show = advancedBox.getVisibility() != View.VISIBLE;
             advancedBox.setVisibility(show ? View.VISIBLE : View.GONE);
-            advToggle.setText(show ? "Advanced options  ▴" : "Advanced options  ▾");
+            advToggleTv.setText(show ? "Advanced options  ▴" : "Advanced options  ▾");
         });
         form.addView(advancedBox);
 
+        if (getIntent().getStringExtra("profile_id") != null) {
+            delTv = ui.text(this, "Delete this profile", 14, Ui.RED, true);
+            delTv.setGravity(Gravity.CENTER);
+            delTv.setPadding(0, Ui.dp(this, 18), 0, 0);
+            delTv.setOnClickListener(v -> new AlertDialog.Builder(this)
+                    .setTitle("Delete profile?")
+                    .setMessage(profile.name)
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Delete", (d, w) -> {
+                        if (isRunningThis()) NillVpnService.stopNow(this);
+                        List<Profile> all = store.profiles();
+                        all.removeIf(q -> q.id.equals(profile.id));
+                        store.saveProfiles(all);
+                        finish();
+                    }).show());
+            form.addView(delTv);
+        }
+
+        // Start/Stop sits in a white bar with rounded top corners, like the reference app
+        LinearLayout btnBar = new LinearLayout(this);
+        btnBar.setOrientation(LinearLayout.VERTICAL);
+        android.graphics.drawable.GradientDrawable barBg = new android.graphics.drawable.GradientDrawable();
+        barBg.setColor(ui.dark ? ui.card : Color.WHITE);
+        float r = Ui.dp(this, 18);
+        barBg.setCornerRadii(new float[]{r, r, r, r, 0, 0, 0, 0});
+        btnBar.setBackground(barBg);
+        btnBar.setPadding(Ui.dp(this, 16), Ui.dp(this, 14), Ui.dp(this, 16), Ui.dp(this, 14));
         startBtn = ui.bigButton(this, isRunningThis() ? "Stop" : "Start", isRunningThis() ? Ui.RED : Ui.GREEN);
         startBtn.setOnClickListener(v -> {
             if (isRunningThis()) {
@@ -281,28 +308,47 @@ public class ProfileEditActivity extends Activity {
                 else requestStart();
             }
         });
-        form.addView(startBtn);
-
-        if (getIntent().getStringExtra("profile_id") != null) {
-            TextView del = ui.text(this, "Delete this profile", 14, Ui.RED, true);
-            del.setGravity(Gravity.CENTER);
-            del.setPadding(0, Ui.dp(this, 18), 0, 0);
-            del.setOnClickListener(v -> new AlertDialog.Builder(this)
-                    .setTitle("Delete profile?")
-                    .setMessage(profile.name)
-                    .setNegativeButton("Cancel", null)
-                    .setPositiveButton("Delete", (d, w) -> {
-                        if (isRunningThis()) NillVpnService.stopNow(this);
-                        List<Profile> all = store.profiles();
-                        all.removeIf(q -> q.id.equals(profile.id));
-                        store.saveProfiles(all);
-                        finish();
-                    }).show());
-            form.addView(del);
-        }
+        btnBar.addView(startBtn);
+        root.addView(btnBar);
 
         root.addView(buildBottomNav());
         setContentView(root);
+        applyRunningMode();
+    }
+
+    /** Password field with the eye toggle, like the reference app (password visible by default). */
+    private FrameLayout passwordField(EditText e) {
+        FrameLayout wrap = new FrameLayout(this);
+        e.setInputType(InputType.TYPE_CLASS_TEXT);
+        e.setPadding(Ui.dp(this, 14), Ui.dp(this, 16), Ui.dp(this, 48), Ui.dp(this, 16));
+        wrap.addView(e);
+        ImageView eye = new ImageView(this);
+        eye.setImageResource(R.drawable.ic_visibility);
+        eye.setColorFilter(Color.rgb(95, 99, 104));
+        FrameLayout.LayoutParams elp = new FrameLayout.LayoutParams(Ui.dp(this, 24), Ui.dp(this, 24));
+        elp.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
+        elp.rightMargin = Ui.dp(this, 12);
+        eye.setLayoutParams(elp);
+        final boolean[] shown = {true};
+        eye.setOnClickListener(v -> {
+            shown[0] = !shown[0];
+            e.setInputType(shown[0] ? InputType.TYPE_CLASS_TEXT
+                    : InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+            e.setSelection(e.getText().length());
+        });
+        wrap.addView(eye);
+        return wrap;
+    }
+
+    /** Like the reference app: while this profile is connected the form locks — stop first to edit. */
+    private void applyRunningMode() {
+        boolean r = isRunningThis();
+        View[] inputs = {fName, fProto, fHost, fPort, fAuth, fUser, fPass, fDns, fTls, fFav, advToggleTv};
+        for (View v : inputs) if (v != null) v.setEnabled(!r);
+        if (delTv != null) delTv.setVisibility(r ? View.GONE : View.VISIBLE);
+        if (backIv != null) backIv.setVisibility(r ? View.INVISIBLE : View.VISIBLE);
+        if (saveIv != null) saveIv.setVisibility(r ? View.INVISIBLE : View.VISIBLE);
+        if (timerText != null) timerText.setTextSize(r ? 26 : 17);
     }
 
     private LinearLayout switchRow(String title, boolean value) {
@@ -443,6 +489,7 @@ public class ProfileEditActivity extends Activity {
         startBtn.setText(r ? "Stop" : "Start");
         startBtn.setBackground(Ui.rounded(r ? Ui.RED : Ui.GREEN, Ui.dp(this, 28)));
         if (!r) timerText.setText("");
+        applyRunningMode();
     }
 
     private void startTimer() {

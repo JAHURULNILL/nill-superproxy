@@ -266,6 +266,9 @@ public class MainActivity extends Activity {
                 String sub = p.host.isEmpty() ? "proxy" : p.host + ":" + p.port;
                 if (isRunning) sub += "  • connected";
                 TextView subTv = ui.text(this, sub, 15, isRunning ? Ui.GREEN : ui.text, false);
+                subTv.setSingleLine(true);
+                subTv.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                subTv.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
                 subLine.addView(subTv);
                 TextView badge = ui.badge(this, p.protocol);
                 LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(

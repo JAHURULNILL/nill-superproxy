@@ -142,6 +142,7 @@ public class Ui {
     public TextView badge(Context ctx, String proto) {
         boolean http = "HTTP".equalsIgnoreCase(proto);
         TextView t = text(ctx, http ? "HTTP" : "SOCKS5", 11, Color.WHITE, true);
+        t.setSingleLine(true);
         t.setBackground(rounded(http ? BADGE_HTTP : BADGE_SOCKS, dp(ctx, 9)));
         t.setPadding(dp(ctx, 8), dp(ctx, 2), dp(ctx, 8), dp(ctx, 2));
         return t;
