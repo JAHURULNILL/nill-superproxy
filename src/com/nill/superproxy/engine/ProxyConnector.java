@@ -7,6 +7,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
@@ -42,6 +43,11 @@ public class ProxyConnector {
         if (cfg.tls) {
             SSLSocketFactory f = (SSLSocketFactory) SSLSocketFactory.getDefault();
             SSLSocket ssl = (SSLSocket) f.createSocket(raw, cfg.proxyHost, cfg.proxyPort, true);
+            // Verify the certificate actually belongs to the proxy host —
+            // without this, TLS to the proxy could be silently intercepted.
+            SSLParameters params = ssl.getSSLParameters();
+            params.setEndpointIdentificationAlgorithm("HTTPS");
+            ssl.setSSLParameters(params);
             ssl.startHandshake();
             s = ssl;
         }

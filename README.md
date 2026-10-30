@@ -67,5 +67,5 @@ Settings → Check for updates. Android shows its own install confirmation —
 there is no silent install for sideloaded apps.
 
 ## Version
-**1.10** — reference-matched UI (outlined fields, vector icons, launcher icon),
+**1.11** — reference-matched UI (outlined fields, vector icons, launcher icon),
 clean sheet-style Settings, in-app auto-update via GitHub Releases.

@@ -197,7 +197,7 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this)
                 .setTitle("Engine")
                 .setMessage("Local VPN (TUN) tunnel → TCP relayed only via your HTTP/SOCKS5 proxy.\n\n"
-                        + "• DNS is resolved through the proxy (TCP) — no DNS leak\n"
+                        + "• DNS is answered on-device with fake IPs; the proxy itself resolves names — no DNS leak\n"
                         + "• UDP is blocked (except DNS) — STUN/WebRTC cannot leak your real IP\n"
                         + "• IPv6 is routed into the tunnel and dropped — no IPv6 bypass\n"
                         + "• Optional TLS wraps the connection to the proxy server\n"
@@ -635,8 +635,6 @@ public class MainActivity extends Activity {
         } else if (requestCode == REQ_IMPORT && resultCode == RESULT_OK && data != null && data.getData() != null) {
             try {
                 java.io.InputStream in = getContentResolver().openInputStream(data.getData());
-                byte[] buf = new byte[in.available()];
-                // read fully
                 java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
                 byte[] chunk = new byte[8192]; int r;
                 while ((r = in.read(chunk)) != -1) bos.write(chunk, 0, r);

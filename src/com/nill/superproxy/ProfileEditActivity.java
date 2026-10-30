@@ -44,6 +44,7 @@ public class ProfileEditActivity extends Activity {
     private EditText fName, fHost, fPort, fUser, fPass;
     private Spinner fProto, fAuth, fDns;
     private Switch fTls, fFav;
+    private final java.util.List<View> fieldInners = new java.util.ArrayList<>();
     private LinearLayout userPassBox, advancedBox;
     private TextView timerText, delTv, advToggleTv;
     private android.widget.ImageView backIv, saveIv, eyeIv;
@@ -92,10 +93,19 @@ public class ProfileEditActivity extends Activity {
 
     private GradientDrawable outline(boolean focused) {
         GradientDrawable g = new GradientDrawable();
-        g.setColor(ui.dark ? ui.fieldBg : Color.rgb(236, 243, 248));
+        g.setColor(ui.dark ? ui.fieldBg : Color.rgb(240, 246, 250));
         g.setCornerRadius(Ui.dp(this, 12));
         g.setStroke(Ui.dp(this, focused ? 2 : 1),
-                focused ? Ui.BLUE : (ui.dark ? ui.divider : Color.rgb(127, 179, 213)));
+                focused ? Ui.BLUE : (ui.dark ? ui.divider : Color.rgb(154, 180, 199)));
+        return g;
+    }
+
+    /** Locked fields (view / connected) sit flatter and greyer, like the reference app. */
+    private GradientDrawable outlineLocked() {
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(ui.dark ? ui.fieldBg : Color.rgb(233, 239, 244));
+        g.setCornerRadius(Ui.dp(this, 12));
+        g.setStroke(Ui.dp(this, 1), ui.dark ? ui.divider : Color.rgb(183, 201, 215));
         return g;
     }
 
@@ -108,16 +118,17 @@ public class ProfileEditActivity extends Activity {
         FrameLayout box = new FrameLayout(this);
         LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        blp.topMargin = Ui.dp(this, 10);
+        blp.topMargin = Ui.dp(this, 14);
         box.setLayoutParams(blp);
         FrameLayout.LayoutParams ilp = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
         ilp.topMargin = label != null ? Ui.dp(this, 9) : 0;
         inner.setLayoutParams(ilp);
         inner.setBackground(outline(false));
+        fieldInners.add(inner);
         box.addView(inner);
         if (label != null) {
-            TextView lab = ui.text(this, label, 14, Color.rgb(96, 125, 139), false);
+            TextView lab = ui.text(this, label, 13, Color.rgb(96, 125, 139), false);
             lab.setBackgroundColor(ui.bg);
             lab.setPadding(Ui.dp(this, 5), 0, Ui.dp(this, 5), 0);
             FrameLayout.LayoutParams llp = new FrameLayout.LayoutParams(
@@ -128,7 +139,7 @@ public class ProfileEditActivity extends Activity {
             final TextView labF = lab;
             inner.setOnFocusChangeListener((v, hasFocus) -> {
                 v.setBackground(outline(hasFocus));
-                labF.setTextColor(hasFocus ? Ui.BLUE : Color.rgb(84, 110, 122));
+                labF.setTextColor(hasFocus ? Ui.BLUE : Color.rgb(96, 125, 139));
             });
         }
         return box;
@@ -141,7 +152,7 @@ public class ProfileEditActivity extends Activity {
         wrap.addView(s);
         ImageView arrow = new ImageView(this);
         arrow.setImageResource(R.drawable.ic_arrow_drop_down);
-        arrow.setColorFilter(Color.rgb(33, 33, 33));
+        arrow.setColorFilter(Color.rgb(95, 99, 104));
         FrameLayout.LayoutParams alp = new FrameLayout.LayoutParams(Ui.dp(this, 24), Ui.dp(this, 24));
         alp.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
         alp.rightMargin = Ui.dp(this, 10);
@@ -155,18 +166,25 @@ public class ProfileEditActivity extends Activity {
         EditText e = new EditText(this);
         e.setHint(hint);
         if (value != null) e.setText(value);
-        e.setTextSize(19);
+        e.setTextSize(17);
         e.setTextColor(ui.text);
         e.setHintTextColor(Color.rgb(117, 117, 117));
         e.setSingleLine(true);
-        e.setPadding(Ui.dp(this, 14), Ui.dp(this, 17), Ui.dp(this, 14), Ui.dp(this, 17));
+        e.setPadding(Ui.dp(this, 14), Ui.dp(this, 16), Ui.dp(this, 14), Ui.dp(this, 16));
         if (number) e.setInputType(InputType.TYPE_CLASS_NUMBER);
         return e;
     }
 
     private Spinner plainSpinner(String[] items, int selected) {
         Spinner s = new Spinner(this);
-        ArrayAdapter<String> ad = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, items);
+        ArrayAdapter<String> ad = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, items) {
+            @Override public View getView(int pos, View cv, android.view.ViewGroup parent) {
+                TextView t = (TextView) super.getView(pos, cv, parent);
+                t.setTextSize(17);
+                t.setTextColor(ui.text);
+                return t;
+            }
+        };
         ad.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         s.setAdapter(ad);
         s.setSelection(selected);
@@ -227,7 +245,7 @@ public class ProfileEditActivity extends Activity {
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
         LinearLayout form = new LinearLayout(this);
         form.setOrientation(LinearLayout.VERTICAL);
-        form.setPadding(Ui.dp(this, 20), Ui.dp(this, 10), Ui.dp(this, 20), Ui.dp(this, 20));
+        form.setPadding(Ui.dp(this, 20), Ui.dp(this, 12), Ui.dp(this, 20), Ui.dp(this, 20));
         scroll.addView(form);
         root.addView(scroll);
 
@@ -371,6 +389,9 @@ public class ProfileEditActivity extends Activity {
         boolean editable = editing && !r;
         View[] inputs = {fName, fProto, fHost, fPort, fAuth, fUser, fPass, fDns, fTls, fFav};
         for (View v : inputs) if (v != null) v.setEnabled(editable);
+        for (View inner : fieldInners) {
+            if (!inner.hasFocus()) inner.setBackground(editable ? outline(false) : outlineLocked());
+        }
         if (eyeIv != null) eyeIv.setEnabled(!r);
         if (advToggleTv != null) advToggleTv.setEnabled(!r);
         boolean existing = getIntent().getStringExtra("profile_id") != null;
