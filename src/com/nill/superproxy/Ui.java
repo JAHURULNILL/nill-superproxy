@@ -38,12 +38,12 @@ public class Ui {
             navPill = Color.rgb(55, 71, 79);
             divider = Color.rgb(84, 110, 122);
         } else {
-            bg = Color.rgb(198, 216, 230);
+            bg = Color.rgb(231, 238, 244);
             card = Color.WHITE;
             topBar = BLUE;
             text = Color.rgb(33, 33, 33);
             subText = Color.rgb(117, 117, 117);
-            fieldBg = Color.rgb(187, 222, 251);
+            fieldBg = Color.rgb(228, 238, 245);
             fieldText = Color.rgb(33, 33, 33);
             navBg = Color.WHITE;
             navPill = Color.rgb(187, 222, 251);
@@ -126,9 +126,9 @@ public class Ui {
     public Button bigButton(Context ctx, String s, int color) {
         Button b = new Button(ctx);
         b.setText(s);
-        b.setTextSize(17);
+        b.setTextSize(19);
         b.setTextColor(Color.WHITE);
-        b.setTypeface(Typeface.DEFAULT_BOLD);
+        b.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
         b.setAllCaps(false);
         b.setBackground(rounded(color, dp(ctx, 28)));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(

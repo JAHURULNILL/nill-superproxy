@@ -48,6 +48,7 @@ public class ProfileEditActivity extends Activity {
     private TextView timerText, delTv, advToggleTv;
     private android.widget.ImageView backIv, saveIv, eyeIv;
     private LinearLayout btnBar;
+    private View navProxiesItem;
     private boolean editing;
     private Button startBtn;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -92,7 +93,7 @@ public class ProfileEditActivity extends Activity {
     private GradientDrawable outline(boolean focused) {
         GradientDrawable g = new GradientDrawable();
         g.setColor(ui.dark ? ui.fieldBg : Color.rgb(236, 243, 248));
-        g.setCornerRadius(Ui.dp(this, 6));
+        g.setCornerRadius(Ui.dp(this, 12));
         g.setStroke(Ui.dp(this, focused ? 2 : 1),
                 focused ? Ui.BLUE : (ui.dark ? ui.divider : Color.rgb(127, 179, 213)));
         return g;
@@ -116,7 +117,7 @@ public class ProfileEditActivity extends Activity {
         inner.setBackground(outline(false));
         box.addView(inner);
         if (label != null) {
-            TextView lab = ui.text(this, label, 13, Color.rgb(84, 110, 122), false);
+            TextView lab = ui.text(this, label, 14, Color.rgb(96, 125, 139), false);
             lab.setBackgroundColor(ui.bg);
             lab.setPadding(Ui.dp(this, 5), 0, Ui.dp(this, 5), 0);
             FrameLayout.LayoutParams llp = new FrameLayout.LayoutParams(
@@ -154,11 +155,11 @@ public class ProfileEditActivity extends Activity {
         EditText e = new EditText(this);
         e.setHint(hint);
         if (value != null) e.setText(value);
-        e.setTextSize(18);
+        e.setTextSize(19);
         e.setTextColor(ui.text);
         e.setHintTextColor(Color.rgb(117, 117, 117));
         e.setSingleLine(true);
-        e.setPadding(Ui.dp(this, 14), Ui.dp(this, 16), Ui.dp(this, 14), Ui.dp(this, 16));
+        e.setPadding(Ui.dp(this, 14), Ui.dp(this, 17), Ui.dp(this, 14), Ui.dp(this, 17));
         if (number) e.setInputType(InputType.TYPE_CLASS_NUMBER);
         return e;
     }
@@ -226,7 +227,7 @@ public class ProfileEditActivity extends Activity {
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
         LinearLayout form = new LinearLayout(this);
         form.setOrientation(LinearLayout.VERTICAL);
-        form.setPadding(Ui.dp(this, 16), Ui.dp(this, 6), Ui.dp(this, 16), Ui.dp(this, 20));
+        form.setPadding(Ui.dp(this, 20), Ui.dp(this, 10), Ui.dp(this, 20), Ui.dp(this, 20));
         scroll.addView(form);
         root.addView(scroll);
 
@@ -380,7 +381,19 @@ public class ProfileEditActivity extends Activity {
             saveIv.setImageResource(editing ? R.drawable.ic_save : R.drawable.ic_edit);
         }
         if (btnBar != null) btnBar.setVisibility(editing ? View.GONE : View.VISIBLE);
-        if (timerText != null) timerText.setTextSize(r ? 26 : 17);
+        if (navProxiesItem != null) navProxiesItem.setAlpha(r ? 0.45f : 1f);
+        if (timerText != null) {
+            timerText.setTextSize(r ? 30 : 17);
+            timerText.setTypeface(r
+                    ? android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+                    : android.graphics.Typeface.DEFAULT_BOLD);
+        }
+        int lockedGrey = Color.rgb(110, 118, 124);
+        if (fName != null) fName.setTextColor(editable ? ui.text : lockedGrey);
+        if (fHost != null) fHost.setTextColor(editable ? ui.text : lockedGrey);
+        if (fPort != null) fPort.setTextColor(editable ? ui.text : lockedGrey);
+        if (fUser != null) fUser.setTextColor(editable ? ui.text : lockedGrey);
+        if (fPass != null) fPass.setTextColor(editable ? ui.text : lockedGrey);
     }
 
     private LinearLayout switchRow(String title, boolean value) {
@@ -430,8 +443,9 @@ public class ProfileEditActivity extends Activity {
             lb.setGravity(Gravity.CENTER);
             item.addView(lb);
             item.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+            if (idx == 0) navProxiesItem = item;
             item.setOnClickListener(v -> {
-                if (idx == 0) { finish(); return; }
+                if (idx == 0) { if (!isRunningThis()) finish(); return; }
                 Intent in = new Intent(this, MainActivity.class);
                 in.putExtra("tab", idx);
                 in.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);

@@ -49,6 +49,16 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         store = new Store(this);
         ui = Ui.of(this);
+        // Like the reference app: while connected there is no home — opening the app
+        // lands on the connected profile; only Logging and Settings stay reachable.
+        if (getIntent().getIntExtra("tab", -1) == -1 && NillVpnService.running
+                && NillVpnService.activeProfileId != null) {
+            Intent i = new Intent(this, ProfileEditActivity.class);
+            i.putExtra("profile_id", NillVpnService.activeProfileId);
+            startActivity(i);
+            finish();
+            return;
+        }
         buildShell();
         showTab(getIntent().getIntExtra("tab", 0));
         UpdateManager.checkAuto(this);
@@ -157,7 +167,13 @@ public class MainActivity extends Activity {
             lb.setPadding(0, Ui.dp(this, 2), 0, 0);
             item.addView(lb);
             item.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-            item.setOnClickListener(v -> showTab(idx));
+            item.setOnClickListener(v -> {
+                if (idx == 0 && NillVpnService.running && NillVpnService.activeProfileId != null) {
+                    Intent pi = new Intent(this, ProfileEditActivity.class);
+                    pi.putExtra("profile_id", NillVpnService.activeProfileId);
+                    startActivity(pi);
+                } else showTab(idx);
+            });
             navBar.addView(item);
         }
     }
@@ -259,7 +275,7 @@ public class MainActivity extends Activity {
                 texts.setOrientation(LinearLayout.VERTICAL);
                 texts.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
                 String star = p.favorite ? " ★" : "";
-                texts.addView(ui.text(this, p.name + star, 19, ui.text, true));
+                texts.addView(ui.text(this, p.name + star, 20, ui.text, true));
                 LinearLayout subLine = new LinearLayout(this);
                 subLine.setOrientation(LinearLayout.HORIZONTAL);
                 subLine.setGravity(Gravity.CENTER_VERTICAL);
