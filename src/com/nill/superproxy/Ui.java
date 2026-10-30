@@ -53,8 +53,10 @@ public class Ui {
 
     public static Ui of(Context ctx) { return new Ui(new Store(ctx).darkTheme()); }
 
-    /** Blue on-state for switches (the framework default teal clashes with this UI). */
+    /** Blue on-state for switches (the framework default teal clashes with this UI), scaled up to the reference app's chunkier Material switch. */
     public static void tintSwitch(android.widget.Switch sw) {
+        sw.setScaleX(1.18f);
+        sw.setScaleY(1.18f);
         try {
             sw.setThumbTintList(new android.content.res.ColorStateList(
                     new int[][]{{android.R.attr.state_checked}, {}},

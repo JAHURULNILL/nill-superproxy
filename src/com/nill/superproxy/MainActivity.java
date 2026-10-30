@@ -34,6 +34,8 @@ public class MainActivity extends Activity {
     private Store store;
     private FrameLayout content;
     private LinearLayout navBar;
+    private TextView headerTitle;
+    private android.widget.ImageView headerIcon, headerDots;
     private int tab = 0; // 0 proxies, 1 logging, 2 settings
     private String pendingStartProfile = null;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -89,22 +91,22 @@ public class MainActivity extends Activity {
         top.setGravity(Gravity.CENTER_VERTICAL);
         top.setBackgroundColor(ui.topBar);
         top.setPadding(Ui.dp(this, 14), Ui.dp(this, 12), Ui.dp(this, 8), Ui.dp(this, 12));
-        android.widget.ImageView icon = iconView(R.drawable.ic_swap, Color.WHITE, 30);
+        headerIcon = iconView(R.drawable.ic_swap, Color.WHITE, 30);
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(Ui.dp(this, 30), Ui.dp(this, 30));
         iconLp.rightMargin = Ui.dp(this, 10);
-        icon.setLayoutParams(iconLp);
-        top.addView(icon);
-        TextView title = ui.text(this, "Super Proxy", 24, Color.WHITE, true);
+        headerIcon.setLayoutParams(iconLp);
+        top.addView(headerIcon);
+        headerTitle = ui.text(this, "Super Proxy", 24, Color.WHITE, true);
         android.graphics.Typeface logo = Ui.logoTypeface(this);
-        if (logo != null) title.setTypeface(logo);
-        title.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-        top.addView(title);
-        android.widget.ImageView dots = iconView(R.drawable.ic_more_vert, Color.WHITE, 26);
+        if (logo != null) headerTitle.setTypeface(logo);
+        headerTitle.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        top.addView(headerTitle);
+        headerDots = iconView(R.drawable.ic_more_vert, Color.WHITE, 26);
         LinearLayout.LayoutParams dotsLp = new LinearLayout.LayoutParams(Ui.dp(this, 34), Ui.dp(this, 34));
-        dots.setLayoutParams(dotsLp);
-        dots.setPadding(Ui.dp(this, 4), Ui.dp(this, 4), Ui.dp(this, 4), Ui.dp(this, 4));
-        dots.setOnClickListener(v -> showOverflow(dots));
-        top.addView(dots);
+        headerDots.setLayoutParams(dotsLp);
+        headerDots.setPadding(Ui.dp(this, 4), Ui.dp(this, 4), Ui.dp(this, 4), Ui.dp(this, 4));
+        headerDots.setOnClickListener(v -> showOverflow(headerDots));
+        top.addView(headerDots);
         root.addView(top);
 
         content = new FrameLayout(this);
@@ -191,8 +193,28 @@ public class MainActivity extends Activity {
 
     // ---------------- tabs ----------------
 
+    /** The reference app retitles the top bar per tab: logo on Proxies, plain "Logging"/"Settings" text otherwise. */
+    private void updateHeader(int idx) {
+        if (headerTitle == null) return;
+        if (idx == 0) {
+            headerIcon.setVisibility(View.VISIBLE);
+            headerDots.setVisibility(View.VISIBLE);
+            headerTitle.setText("Super Proxy");
+            android.graphics.Typeface logo = Ui.logoTypeface(this);
+            headerTitle.setTypeface(logo != null ? logo : android.graphics.Typeface.DEFAULT_BOLD);
+            headerTitle.setTextSize(24);
+        } else {
+            headerIcon.setVisibility(View.GONE);
+            headerDots.setVisibility(View.GONE);
+            headerTitle.setText(idx == 1 ? "Logging" : "Settings");
+            headerTitle.setTypeface(android.graphics.Typeface.DEFAULT);
+            headerTitle.setTextSize(25);
+        }
+    }
+
     private void showTab(int idx) {
         tab = idx;
+        updateHeader(idx);
         rebuildNav();
         content.removeAllViews();
         if (logListener != null) { LogStore.removeListener(logListener); logListener = null; }
@@ -393,77 +415,89 @@ public class MainActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
-        col.setPadding(0, 0, 0, Ui.dp(this, 24));
+        col.setPadding(0, Ui.dp(this, 6), 0, Ui.dp(this, 24));
         scroll.addView(col);
 
-        // One clean white sheet per group, hairline dividers — same look as the profile list
-        LinearLayout g1 = settingsSheet(col);
-        addToSheet(g1, textRow("Back up your proxies", "Export / Import (JSON)", () ->
-                new AlertDialog.Builder(this).setTitle("Back up your proxies")
-                        .setItems(new String[]{"Export to file", "Import from file"}, (d, w) -> {
-                            if (w == 0) exportProfiles(); else importProfiles();
-                        }).show()));
-        addToSheet(g1, switchRow("Dark theme", null, store.darkTheme(),
-                v -> { store.setDarkTheme(v); recreate(); }));
+        // Backup card (the reference has its Google sync card in this spot)
+        LinearLayout backup = ui.cardRow(this);
+        backup.setOrientation(LinearLayout.VERTICAL);
+        backup.removeAllViews();
+        backup.setPadding(Ui.dp(this, 16), Ui.dp(this, 14), Ui.dp(this, 16), Ui.dp(this, 14));
+        backup.addView(ui.text(this, "Back up your proxies", 17, ui.text, true));
+        backup.addView(ui.text(this, "Export or import all profiles as a JSON file", 14, ui.subText, false));
+        backup.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle("Back up your proxies")
+                .setItems(new String[]{"Export to file", "Import from file"}, (d, w) -> {
+                    if (w == 0) exportProfiles(); else importProfiles();
+                }).show());
+        col.addView(backup);
 
-        LinearLayout g2 = settingsSheet(col);
-        addToSheet(g2, switchRow("Connectivity check", "Test the proxy before it starts",
+        sectionLabel(col, "Appearance");
+        addToSheet(col, textRow("Language", "English"));
+        addToSheet(col, textRow("Theme", store.darkTheme() ? "Dark theme" : "Light theme", () ->
+                new AlertDialog.Builder(this).setTitle("Theme")
+                        .setItems(new String[]{"Light theme", "Dark theme"}, (d, w) -> {
+                            store.setDarkTheme(w == 1);
+                            recreate();
+                        }).show()));
+        addToSheet(col, textRow("Notification", "Grant permission to display a notification on proxy connection",
+                this::openNotificationSettings));
+
+        sectionLabel(col, "Proxy");
+        addToSheet(col, switchRow("Connectivity check", "Check the login credentials with a test connection",
                 store.connectivityCheck(), v -> store.setConnectivityCheck(v)));
-        addToSheet(g2, switchRow("Stop automatically", "Stop when the connection is lost",
+        addToSheet(col, switchRow("Stop automatically", "Stop service automatically when the wireless connection is lost",
                 store.stopOnWifiLoss(), v -> store.setStopOnWifiLoss(v)));
-        addToSheet(g2, switchRow("Auto-connect on boot", null,
+        addToSheet(col, switchRow("Auto-connect on boot", "Start the last used profile when the device boots",
                 store.autoBoot(), v -> store.setAutoBoot(v)));
-        addToSheet(g2, switchRow("Auto-reconnect", null,
+        addToSheet(col, switchRow("Auto-reconnect", "Reconnect automatically if the tunnel drops",
                 store.autoReconnect(), v -> store.setAutoReconnect(v)));
 
-        LinearLayout g3 = settingsSheet(col);
-        addToSheet(g3, textRow("Disallowed apps", store.disallowedApps().size() + " apps bypass the proxy",
+        sectionLabel(col, "Apps");
+        addToSheet(col, textRow("Disallowed apps", store.disallowedApps().size() + " apps bypass the proxy",
                 () -> openPicker("disallowed")));
-        addToSheet(g3, switchRow("Allowlist mode", "Only allowed apps use the proxy",
+        addToSheet(col, switchRow("Allowlist mode", "Only allowed apps use the proxy",
                 store.allowlistMode(), v -> store.setAllowlistMode(v)));
-        addToSheet(g3, textRow("Allowed apps", store.allowedApps().size() + " apps selected",
+        addToSheet(col, textRow("Allowed apps", store.allowedApps().size() + " apps selected",
                 () -> openPicker("allowed")));
-        addToSheet(g3, textRow("Firewall apps", store.firewallApps().size() + " apps blocked",
+        addToSheet(col, textRow("Firewall apps", store.firewallApps().size() + " apps blocked while connected",
                 () -> openPicker("firewall")));
 
-        LinearLayout g4 = settingsSheet(col);
-        addToSheet(g4, textRow("Kill switch", "Always-on VPN (system setting)",
+        sectionLabel(col, "System");
+        addToSheet(col, textRow("Kill switch", "Always-on VPN + Block connections without VPN (system setting)",
                 () -> {
                     try { startActivity(new Intent("android.settings.VPN_SETTINGS")); }
                     catch (Exception e) { startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS)); }
                 }));
         String ver = "?";
         try { ver = getPackageManager().getPackageInfo(getPackageName(), 0).versionName; } catch (Exception ignored) {}
-        addToSheet(g4, textRow("Check for updates", "Current version " + ver,
+        addToSheet(col, textRow("Check for updates", "Current version " + ver,
                 () -> UpdateManager.check(this, true)));
-        addToSheet(g4, textRow("About", "Nill Super Proxy " + ver, this::showAbout));
+        addToSheet(col, textRow("About", "Nill Super Proxy " + ver, this::showAbout));
         return scroll;
     }
 
-    private LinearLayout settingsSheet(LinearLayout parent) {
-        // No white boxes: rows sit directly on the page colour, like the other pages
-        LinearLayout sheet = new LinearLayout(this);
-        sheet.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = Ui.dp(this, 14);
-        sheet.setLayoutParams(lp);
-        parent.addView(sheet);
-        return sheet;
+    private void openNotificationSettings() {
+        if (Build.VERSION.SDK_INT >= 33) {
+            requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 777);
+            return;
+        }
+        try {
+            Intent i = new Intent("android.settings.APP_NOTIFICATION_SETTINGS");
+            i.putExtra("android.provider.extra.APP_PACKAGE", getPackageName());
+            startActivity(i);
+        } catch (Exception e) {
+            startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS));
+        }
     }
 
-    private void addToSheet(LinearLayout sheet, View row) {
-        if (sheet.getChildCount() > 0) {
-            View div = new View(this);
-            div.setBackgroundColor(ui.dark ? ui.divider : Color.rgb(168, 192, 208));
-            LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, Math.max(1, Ui.dp(this, 1)));
-            dlp.leftMargin = Ui.dp(this, 16);
-            div.setLayoutParams(dlp);
-            sheet.addView(div);
-        }
-        sheet.addView(row);
+    /** Blue section label, like the reference app ("Appearance", "Proxy", ...). */
+    private void sectionLabel(LinearLayout parent, String text) {
+        TextView t = ui.text(this, text, 14, Ui.BLUE, false);
+        t.setPadding(Ui.dp(this, 16), Ui.dp(this, 22), 0, Ui.dp(this, 2));
+        parent.addView(t);
     }
+
+    private void addToSheet(LinearLayout parent, View row) { parent.addView(row); }
 
     private interface BoolSetter { void set(boolean v); }
 
@@ -471,12 +505,12 @@ public class MainActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(Ui.dp(this, 16), Ui.dp(this, 12), Ui.dp(this, 12), Ui.dp(this, 12));
+        row.setPadding(Ui.dp(this, 16), Ui.dp(this, 13), Ui.dp(this, 14), Ui.dp(this, 13));
         LinearLayout texts = new LinearLayout(this);
         texts.setOrientation(LinearLayout.VERTICAL);
         texts.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-        texts.addView(ui.text(this, title, 16, ui.text, false));
-        if (sub != null) texts.addView(ui.text(this, sub, 13, ui.subText, false));
+        texts.addView(ui.text(this, title, 19, ui.text, false));
+        if (sub != null) texts.addView(ui.text(this, sub, 14, ui.subText, false));
         row.addView(texts);
         Switch sw = new Switch(this);
         Ui.tintSwitch(sw);
@@ -492,12 +526,12 @@ public class MainActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(Ui.dp(this, 16), Ui.dp(this, 12), Ui.dp(this, 8), Ui.dp(this, 12));
+        row.setPadding(Ui.dp(this, 16), Ui.dp(this, 13), Ui.dp(this, 12), Ui.dp(this, 13));
         LinearLayout texts = new LinearLayout(this);
         texts.setOrientation(LinearLayout.VERTICAL);
         texts.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-        texts.addView(ui.text(this, title, 16, ui.text, false));
-        if (sub != null) texts.addView(ui.text(this, sub, 13, ui.subText, false));
+        texts.addView(ui.text(this, title, 19, ui.text, false));
+        if (sub != null) texts.addView(ui.text(this, sub, 14, ui.subText, false));
         row.addView(texts);
         if (onClick != null) {
             row.addView(iconView(R.drawable.ic_chevron, Color.rgb(117, 117, 117), 24));
