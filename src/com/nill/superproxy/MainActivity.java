@@ -49,6 +49,9 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         store = new Store(this);
         ui = Ui.of(this);
+        CrashLog.install(this);
+        String lastCrash = CrashLog.peek(this);
+        if (lastCrash != null) LogStore.add("PREVIOUS CRASH: " + lastCrash);
         // Like the reference app: while connected there is no home — opening the app
         // lands on the connected profile; only Logging and Settings stay reachable.
         if (getIntent().getIntExtra("tab", -1) == -1 && NillVpnService.running
@@ -492,6 +495,7 @@ public class MainActivity extends Activity {
                 }));
         String ver = "?";
         try { ver = getPackageManager().getPackageInfo(getPackageName(), 0).versionName; } catch (Exception ignored) {}
+        addToSheet(col, textRow("Battery optimization", batterySub(), this::openBatterySettings));
         addToSheet(col, textRow("Check for updates", "Current version " + ver,
                 () -> UpdateManager.check(this, true)));
         addToSheet(col, textRow("About", "Nill Super Proxy " + ver, this::showAbout));
@@ -536,6 +540,32 @@ public class MainActivity extends Activity {
                 + "connection, which is what local apps (banking, bKash) usually need.";
         new AlertDialog.Builder(this).setTitle("Privacy guide")
                 .setMessage(msg).setPositiveButton("OK", null).show();
+    }
+
+    private String batterySub() {
+        try {
+            android.os.PowerManager pm = (android.os.PowerManager) getSystemService(POWER_SERVICE);
+            if (pm != null && android.os.Build.VERSION.SDK_INT >= 23
+                    && pm.isIgnoringBatteryOptimizations(getPackageName())) {
+                return "Exempt — the system will not kill the tunnel";
+            }
+        } catch (Exception ignored) {}
+        return "Not exempt — Xiaomi/MIUI may stop the tunnel in the background. Tap to fix";
+    }
+
+    private void openBatterySettings() {
+        try {
+            android.os.PowerManager pm = (android.os.PowerManager) getSystemService(POWER_SERVICE);
+            if (pm != null && android.os.Build.VERSION.SDK_INT >= 23
+                    && !pm.isIgnoringBatteryOptimizations(getPackageName())) {
+                Intent i = new Intent("android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS");
+                i.setData(android.net.Uri.parse("package:" + getPackageName()));
+                startActivity(i);
+                return;
+            }
+        } catch (Exception ignored) {}
+        try { startActivity(new Intent("android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS")); }
+        catch (Exception e) { startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS)); }
     }
 
     private void openNotificationSettings() {

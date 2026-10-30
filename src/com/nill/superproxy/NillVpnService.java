@@ -98,6 +98,7 @@ public class NillVpnService extends VpnService {
     @Override public void onCreate() {
         super.onCreate();
         store = new Store(this);
+        CrashLog.install(this);
     }
 
     @Override
@@ -110,7 +111,13 @@ public class NillVpnService extends VpnService {
         String pid = intent != null ? intent.getStringExtra(EXTRA_PROFILE) : store.lastProfileId();
         Profile p = store.profileById(pid);
         if (p == null) { stopSelf(); return START_NOT_STICKY; }
-        startTunnel(p);
+        try {
+            startTunnel(p);
+        } catch (Throwable t) {
+            LogStore.add("Start failed: " + t);
+            stopSelf();
+            return START_NOT_STICKY;
+        }
         return START_STICKY;
     }
 
@@ -211,7 +218,7 @@ public class NillVpnService extends VpnService {
             catch (IOException e) { break; }
             if (n <= 0) continue;
             try { handlePacket(buf, n); }
-            catch (Exception e) { /* never let one bad packet kill the tunnel */ }
+            catch (Throwable e) { /* never let one bad packet kill the tunnel */ }
         }
         if (!stopping && running) {
             // Tunnel died unexpectedly (e.g. revoked): try to come back if allowed.
@@ -255,6 +262,14 @@ public class NillVpnService extends VpnService {
         boolean isSyn = (flags & Packets.FLAG_SYN) != 0 && (flags & Packets.FLAG_ACK) == 0;
         if (session == null) {
             if (!isSyn) return; // stray packet for a dead flow
+            synchronized (sessions) {
+                // Every session costs threads; past this cap a busy page
+                // could exhaust the process and kill the whole tunnel.
+                if (sessions.size() >= 192) {
+                    if (sessions.size() % 32 == 0) LogStore.add("Session cap reached — refusing new connections briefly");
+                    return;
+                }
+            }
             if (isFirewalled(srcIp, srcPort, dstIp, dstPort)) {
                 LogStore.add("FIREWALL blocked " + dstIp + ":" + dstPort);
                 return;
@@ -433,6 +448,23 @@ public class NillVpnService extends VpnService {
         if (wasRunning) LogStore.add("SERVICE_STOPPED");
         stopForeground(true);
         refreshWidgetsAndTile();
+    }
+
+    @Override public void onTaskRemoved(Intent rootIntent) {
+        // Swiping the app away must not take the tunnel down with it.
+        if (running && store != null && store.autoReconnect()) {
+            LogStore.add("App swiped away — restarting the tunnel service");
+            try {
+                Intent i = new Intent(this, NillVpnService.class);
+                i.setAction(ACTION_START);
+                android.app.AlarmManager am = (android.app.AlarmManager) getSystemService(ALARM_SERVICE);
+                android.app.PendingIntent pi = android.app.PendingIntent.getService(this, 99, i,
+                        android.app.PendingIntent.FLAG_ONE_SHOT | android.app.PendingIntent.FLAG_IMMUTABLE);
+                am.set(android.app.AlarmManager.ELAPSED_REALTIME,
+                        android.os.SystemClock.elapsedRealtime() + 1000, pi);
+            } catch (Exception ignored) {}
+        }
+        super.onTaskRemoved(rootIntent);
     }
 
     @Override public void onRevoke() {

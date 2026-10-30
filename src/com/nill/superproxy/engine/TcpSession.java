@@ -129,7 +129,7 @@ public class TcpSession {
             }, "tcpsess-read");
             r.setDaemon(true);
             r.start();
-        } catch (IOException e) {
+        } catch (Throwable e) {
             listener.onLog("CONNECT " + target + ":" + dstPort + " FAILED (" + e.getMessage() + ")");
             // Refuse the connection cleanly so the app retries/fails fast instead of hanging.
             if (!closed) sendToClient(null, 0, 0, Packets.FLAG_RST | Packets.FLAG_ACK);
@@ -168,7 +168,7 @@ public class TcpSession {
                     }
                     listener.onBytes(payLen, 0);
                     clientSeqNext = (clientSeqNext + payLen) & 0xFFFFFFFFL;
-                } catch (IOException e) {
+                } catch (Throwable e) {
                     close();
                     return;
                 }
@@ -212,7 +212,7 @@ public class TcpSession {
                 serverSeq = (serverSeq + n) & 0xFFFFFFFFL;
                 listener.onBytes(0, n);
             }
-        } catch (IOException ignored) {
+        } catch (Throwable ignored) {
         } finally {
             if (!closed) {
                 // Proxy closed its side: FIN to client.

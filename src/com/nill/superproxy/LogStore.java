@@ -39,7 +39,7 @@ public class LogStore {
     private static void notifyListeners() {
         List<Runnable> copy;
         synchronized (LogStore.class) { copy = new ArrayList<>(LISTENERS); }
-        for (Runnable r : copy) r.run();
+        for (Runnable r : copy) { try { r.run(); } catch (Throwable ignored) {} }
     }
 
     public static void tickRates() { notifyListeners(); }
