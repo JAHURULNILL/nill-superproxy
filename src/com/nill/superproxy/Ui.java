@@ -16,7 +16,7 @@ public class Ui {
     public final boolean dark;
 
     public static final int BLUE = Color.rgb(2, 119, 189);        // primary / top bar (matches reference)
-    public static final int BLUE_BTN = Color.rgb(30, 136, 229);   // Add proxy button
+    public static final int BLUE_BTN = Color.rgb(2, 119, 189);    // Add proxy button — same calm blue as the top bar
     public static final int NAVY_BTN = Color.rgb(10, 77, 122);    // Buy proxy button
     public static final int BLUE_DARK = Color.rgb(13, 71, 161);
     public static final int GREEN = Color.rgb(67, 160, 71);      // Start

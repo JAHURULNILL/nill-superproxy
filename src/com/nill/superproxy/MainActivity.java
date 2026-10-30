@@ -418,18 +418,12 @@ public class MainActivity extends Activity {
         col.setPadding(0, Ui.dp(this, 6), 0, Ui.dp(this, 24));
         scroll.addView(col);
 
-        // Backup card (the reference has its Google sync card in this spot)
-        LinearLayout backup = ui.cardRow(this);
-        backup.setOrientation(LinearLayout.VERTICAL);
-        backup.removeAllViews();
-        backup.setPadding(Ui.dp(this, 16), Ui.dp(this, 14), Ui.dp(this, 16), Ui.dp(this, 14));
-        backup.addView(ui.text(this, "Back up your proxies", 17, ui.text, true));
-        backup.addView(ui.text(this, "Export or import all profiles as a JSON file", 14, ui.subText, false));
-        backup.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle("Back up your proxies")
-                .setItems(new String[]{"Export to file", "Import from file"}, (d, w) -> {
-                    if (w == 0) exportProfiles(); else importProfiles();
-                }).show());
-        col.addView(backup);
+        // Backup as a flat row, same as every other row — no white card
+        addToSheet(col, textRow("Back up your proxies", "Export or import all profiles as a JSON file",
+                () -> new AlertDialog.Builder(this).setTitle("Back up your proxies")
+                        .setItems(new String[]{"Export to file", "Import from file"}, (d, w) -> {
+                            if (w == 0) exportProfiles(); else importProfiles();
+                        }).show()));
 
         sectionLabel(col, "Appearance");
         addToSheet(col, textRow("Language", "English"));
