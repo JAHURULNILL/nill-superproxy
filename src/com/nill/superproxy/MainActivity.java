@@ -441,9 +441,9 @@ public class MainActivity extends Activity {
     }
 
     private LinearLayout settingsSheet(LinearLayout parent) {
+        // No white boxes: rows sit directly on the page colour, like the other pages
         LinearLayout sheet = new LinearLayout(this);
         sheet.setOrientation(LinearLayout.VERTICAL);
-        sheet.setBackgroundColor(ui.card);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.topMargin = Ui.dp(this, 14);
@@ -455,7 +455,7 @@ public class MainActivity extends Activity {
     private void addToSheet(LinearLayout sheet, View row) {
         if (sheet.getChildCount() > 0) {
             View div = new View(this);
-            div.setBackgroundColor(ui.divider);
+            div.setBackgroundColor(ui.dark ? ui.divider : Color.rgb(168, 192, 208));
             LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, Math.max(1, Ui.dp(this, 1)));
             dlp.leftMargin = Ui.dp(this, 16);
